@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>고급 카운트다운 타이머</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts (Noto Sans KR & Montserrat) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Sans KR', 'Montserrat', sans-serif;
+      background: radial-gradient(circle at center, #1e1e2f 0%, #0f0f15 100%);
+    }
+    
+    /* 원형 프로그레스 바 애니메이션을 위한 트랜지션 */
+    circle {
+      transition: stroke-dashoffset 0.1s linear;
+    }
+    
+    /* 커스텀 스크롤바 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-gray-100 flex flex-col justify-between p-4 md:p-8 overflow-x-hidden">
+
+  <!-- 메인 헤더 -->
+  <header class="text-center py-4">
+    <h1 class="text-3xl md:text-4xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">
+      COUNTDOWN
+    </h1>
+    <p class="text-xs md:text-sm text-gray-400 mt-1">세련된 디자인의 스마트 타이머</p>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main class="flex-grow flex flex-col lg:flex-row items-center justify-center gap-8 max-w-6xl mx-auto w-full my-6">
+    
+    <!-- 왼쪽: 타이머 표시 구역 (Visual Section) -->
+    <div class="flex-1 flex flex-col items-center justify-center w-full max-w-md">
+      <!-- 타이머 원형 서클 패널 -->
+      <div class="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center bg-gray-900/40 rounded-full border border-gray-800 shadow-2xl backdrop-blur-md p-4">
+        
+        <!-- SVG 원형 프로그레스 바 -->
+        <svg class="absolute top-0 left-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+          <!-- 배경 원 -->
+          <circle 
+            cx="50" 
+            cy="50" 
+            r="44" 
+            stroke="rgba(255, 255, 255, 0.05)" 
+            stroke-width="3" 
+            fill="transparent" 
+          />
+          <!-- 실제 줄어드는 전경 원 -->
+          <circle 
+            id="progress-circle"
+            cx="50" 
+            cy="50" 
+            r="44" 
+            stroke="url(#gradient)" 
+            stroke-width="3.5" 
+            fill="transparent" 
+            stroke-dasharray="276.4"
+            stroke-dashoffset="0"
+            stroke-linecap="round"
+          />
+          <!-- 그라디언트 정의 -->
+          <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#38bdf8" />
+              <stop offset="50%" stop-color="#3b82f6" />
+              <stop offset="100%" stop-color="#8b5cf6" />
+            </linearGradient>
+          </defs>
+        </svg>
+
+        <!-- 중앙 시간 텍스트 -->
+        <div class="text-center z-10 select-none">
+          <div id="time-display" class="text-4xl md:text-5xl font-light font-mono tracking-widest text-white drop-shadow-[0_0_12px_rgba(56,189,248,0.3)]">
+            00:05:00
+          </div>
+          <!-- 진행률 퍼센트 또는 메시지 -->
+          <div id="timer-status" class="text-xs text-gray-400 mt-2 font-medium uppercase tracking-widest">
+            대기 중
+          </div>
+        </div>
+      </div>
+
+      <!-- 타이머 컨트롤 버튼군 -->
+      <div class="flex gap-4 mt-8 w-full justify-center">
+        <!-- 재생 / 일시정지 -->
+        <button id="btn-toggle" class="flex items-center justify-center gap-2 px-6 py-3 rounded-full text-base font-medium shadow-lg transition-all duration-300 w-36 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 active:scale-95">
+          <i id="btn-toggle-icon" class="fas fa-play"></i>
+          <span id="btn-toggle-text">시작</span>
+        </button>
+        <!-- 정지 / 리셋 -->
+        <button id="btn-reset" class="flex items-center justify-center gap-2 px-6 py-3 rounded-full text-base font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 active:scale-95 border border-gray-700 shadow-md transition-all duration-300 w-36">
+          <i class="fas fa-undo"></i>
+          <span>초기화</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 오른쪽: 컨트롤 및 설정 구역 (Control Panel) -->
+    <div class="flex-1 w-full max-w-md bg-gray-900/60 p-6 md:p-8 rounded-2xl border border-gray-800/80 shadow-2xl backdrop-blur-md flex flex-col justify-between">
+      
+      <!-- 시간 직접 입력 설정 -->
+      <div class="mb-6">
+        <h3 class="text-lg font-bold text-gray-200 mb-3 flex items-center gap-2">
+          <i class="far fa-clock text-blue-400"></i> 직접 시간 설정
+        </h3>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="flex flex-col">
+            <label class="text-xs text-gray-400 mb-1 ml-1 font-semibold">시간</label>
+            <input id="input-hours" type="number" min="0" max="99" value="0" class="w-full bg-gray-800/80 border border-gray-700 text-white rounded-xl py-2 px-3 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg" placeholder="00">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs text-gray-400 mb-1 ml-1 font-semibold">분</label>
+            <input id="input-minutes" type="number" min="0" max="59" value="5" class="w-full bg-gray-800/80 border border-gray-700 text-white rounded-xl py-2 px-3 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg" placeholder="00">
+          </div>
+          <div class="flex flex-col">
+            <label class="text-xs text-gray-400 mb-1 ml-1 font-semibold">초</label>
+            <input id="input-seconds" type="number" min="0" max="59" value="0" class="w-full bg-gray-800/80 border border-gray-700 text-white rounded-xl py-2 px-3 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg" placeholder="00">
+          </div>
+        </div>
+        <button id="btn-apply-custom" class="w-full mt-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium rounded-xl border border-gray-700 transition duration-200">
+          직접 입력 시간 적용
+        </button>
+      </div>
+
+      <!-- 프리셋(빠른 설정) 버튼군 -->
+      <div class="mb-6">
+        <h3 class="text-lg font-bold text-gray-200 mb-3 flex items-center gap-2">
+          <i class="fas fa-bolt text-yellow-400"></i> 간편 프리셋
+        </h3>
+        <div class="grid grid-cols-3 gap-2">
+          <button data-seconds="60" class="preset-btn bg-gray-800/60 hover:bg-gray-700/60 text-sm py-2 rounded-xl text-gray-300 border border-gray-700/50 transition duration-150 active:scale-95 font-medium">1 분</button>
+          <button data-seconds="300" class="preset-btn bg-gray-800/60 hover:bg-gray-700/60 text-sm py-2 rounded-xl text-gray-300 border border-gray-700/50 transition duration-150 active:scale-95 font-medium">5 분</button>
+          <button data-seconds="600" class="preset-btn bg-gray-800/60 hover:bg-gray-700/60 text-sm py-2 rounded-xl text-gray-300 border border-gray-700/50 transition duration-150 active:scale-95 font-medium">10 분</button>
+          <button data-seconds="1800" class="preset-btn bg-gray-800/60 hover:bg-gray-700/60 text-sm py-2 rounded-xl text-gray-300 border border-gray-700/50 transition duration-150 active:scale-95 font-medium">30 분</button>
+          <button data-seconds="3600" class="preset-btn bg-gray-800/60 hover:bg-gray-700/60 text-sm py-2 rounded-xl text-gray-300 border border-gray-700/50 transition duration-150 active:scale-95 font-medium">1 시간</button>
+          <button data-seconds="7200" class="preset-btn bg-gray-800/60 hover:bg-gray-700/60 text-sm py-2 rounded-xl text-gray-300 border border-gray-700/50 transition duration-150 active:scale-95 font-medium">2 시간</button>
+        </div>
+      </div>
+
+      <!-- 부가 옵션 (소리 알림 등) -->
+      <div>
+        <h3 class="text-lg font-bold text-gray-200 mb-3 flex items-center gap-2">
+          <i class="fas fa-sliders-h text-purple-400"></i> 타이머 옵션
+        </h3>
+        <div class="flex items-center justify-between p-3 bg-gray-800/40 border border-gray-700/40 rounded-xl">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-volume-up text-blue-400" id="sound-icon"></i>
+            <div>
+              <p class="text-sm font-semibold text-gray-200">종료 시 효과음</p>
+              <p class="text-xs text-gray-400">타이머가 완료되면 알람음 작동</p>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-sound" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+      </div>
+      
+    </div>
+  </main>
+
+  <!-- 완료 알림 모달 -->
+  <div id="alarm-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-gray-900 border border-yellow-500/30 p-8 rounded-2xl max-w-sm w-full mx-4 text-center shadow-[0_0_30px_rgba(234,179,8,0.2)]">
+      <div class="w-16 h-16 bg-yellow-500/10 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+        <i class="fas fa-bell text-2xl"></i>
+      </div>
+      <h2 class="text-2xl font-extrabold text-white mb-2">시간 완료!</h2>
+      <p class="text-gray-400 mb-6">설정한 타이머 시간이 모두 완료되었습니다.</p>
+      <button id="btn-modal-close" class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-3 rounded-xl transition duration-200 shadow-lg">
+        확인
+      </button>
+    </div>
+  </div>
+
+  <!-- 푸터 -->
+  <footer class="text-center py-4 text-xs text-gray-500 border-t border-gray-800/40 mt-6">
+    <p>© 2026 Countdown Application. All Rights Reserved.</p>
+  </footer>
+
+  <script>
+    // --- DOM 요소 정의 ---
+    const progressCircle = document.getElementById('progress-circle');
+    const timeDisplay = document.getElementById('time-display');
+    const timerStatusDisplay = document.getElementById('timer-status');
+    
+    // 조작 버튼들
+    const btnToggle = document.getElementById('btn-toggle');
+    const btnToggleIcon = document.getElementById('btn-toggle-icon');
+    const btnToggleText = document.getElementById('btn-toggle-text');
+    const btnReset = document.getElementById('btn-reset');
+    
+    // 입력 폼 및 프리셋
+    const inputHours = document.getElementById('input-hours');
+    const inputMinutes = document.getElementById('input-minutes');
+    const inputSeconds = document.getElementById('input-seconds');
+    const btnApplyCustom = document.getElementById('btn-apply-custom');
+    const presetButtons = document.querySelectorAll('.preset-btn');
+    
+    // 설정 옵션
+    const toggleSound = document.getElementById('toggle-sound');
+    const soundIcon = document.getElementById('sound-icon');
+    
+    // 모달 알림
+    const alarmModal = document.getElementById('alarm-modal');
+    const btnModalClose = document.getElementById('btn-modal-close');
+
+    // --- 전역 변수 설정 ---
+    let totalSeconds = 300; // 기본값 5분 (300초)
+    let remainingSeconds = 300;
+    let timerInterval = null;
+    let isRunning = false;
+    
+    // SVG 원주율 계산 (r = 44 => 2 * PI * r = 276.46)
+    const strokeDashArray = 276.46;
+
+    // 가상 알림 효과음용 오디오 컨텍스트 설정
+    let audioCtx = null;
+
+    // --- 기능 함수 정의 ---
+
+    // 시간 포맷팅 (hh:mm:ss)
+    function formatTime(secs) {
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = secs % 60;
+      return [
+        h.toString().padStart(2, '0'),
+        m.toString().padStart(2, '0'),
+        s.toString().padStart(2, '0')
+      ].join(':');
+    }
+
+    // UI 업데이트 (숫자 텍스트 및 프로그레스 바 원형 그리기)
+    function updateUI() {
+      // 시간 텍스트 출력
+      timeDisplay.textContent = formatTime(remainingSeconds);
+      
+      // 프로그레스 바 대시옵셋 연산
+      let progressRatio = 0;
+      if (totalSeconds > 0) {
+        progressRatio = remainingSeconds / totalSeconds;
+      }
+      const offset = progressRatio * strokeDashArray;
+      
+      // 도넛 차트가 줄어드는 느낌을 자연스럽게 반영하기 위해 역 계산 적용
+      progressCircle.style.strokeDashoffset = strokeDashArray - offset;
+      
+      // 상태 텍스트 분기 처리
+      if (remainingSeconds === 0) {
+        timerStatusDisplay.textContent = "시간 완료!";
+        timerStatusDisplay.className = "text-xs mt-2 font-medium uppercase tracking-widest text-yellow-400";
+      } else if (isRunning) {
+        timerStatusDisplay.textContent = "카운트다운 중";
+        timerStatusDisplay.className = "text-xs mt-2 font-medium uppercase tracking-widest text-blue-400";
+      } else {
+        timerStatusDisplay.textContent = "대기 중";
+        timerStatusDisplay.className = "text-xs mt-2 font-medium uppercase tracking-widest text-gray-400";
+      }
+    }
+
+    // 오디오 컨텍스트를 활성화하여 비프음 사운드 생성하기
+    function playBeepSound() {
+      if (!toggleSound.checked) return;
+      
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // 3번 울리는 멜로디형 알람 비프음
+        const now = audioCtx.currentTime;
+        const beeps = [
+          { time: now, freq: 880, dur: 0.15 },
+          { time: now + 0.2, freq: 880, dur: 0.15 },
+          { time: now + 0.4, freq: 1200, dur: 0.4 }
+        ];
+
+        beeps.forEach(beep => {
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(beep.freq, beep.time);
+          
+          gainNode.gain.setValueAtTime(0.3, beep.time);
+          // 서서히 페이드아웃 효과 구현
+          gainNode.gain.exponentialRampToValueAtTime(0.01, beep.time + beep.dur);
+          
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          osc.start(beep.time);
+          osc.stop(beep.time + beep.dur);
+        });
+      } catch (err) {
+        console.warn("웹 오디오 재생 제한이나 브라우저 환경으로 인해 실패했습니다.", err);
+      }
+    }
+
+    // 타이머 일시정지
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      isRunning = false;
+      btnToggleIcon.className = "fas fa-play";
+      btnToggleText.textContent = "시작";
+      btnToggle.className = btnToggle.className.replace('from-amber-500 to-orange-600', 'from-blue-500 to-indigo-600')
+                                               .replace('hover:from-amber-600 hover:to-orange-700', 'hover:from-blue-600 hover:to-indigo-700');
+      updateUI();
+    }
+
+    // 타이머 동작 완료 시 호출되는 함수
+    function handleTimerFinished() {
+      pauseTimer();
+      playBeepSound();
+      showModal();
+    }
+
+    // 타이머 시작 함수
+    function startTimer() {
+      if (remainingSeconds <= 0) return;
+      
+      // 웹 오디오 컨텍스트 유저 인터랙션 대응 활성화
+      if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      }
+
+      isRunning = true;
+      btnToggleIcon.className = "fas fa-pause";
+      btnToggleText.textContent = "일시정지";
+      
+      // 시작 상태일 땐 버튼 노란색 톤으로 변환
+      btnToggle.className = btnToggle.className.replace('from-blue-500 to-indigo-600', 'from-amber-500 to-orange-600')
+                                               .replace('hover:from-blue-600 hover:to-indigo-700', 'hover:from-amber-600 hover:to-orange-700');
+      
+      updateUI();
+
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        if (remainingSeconds <= 0) {
+          remainingSeconds = 0;
+          updateUI();
+          handleTimerFinished();
+        } else {
+          updateUI();
+        }
+      }, 1000);
+    }
+
+    // 시작/일시정지 토글 함수
+    function toggleTimer() {
+      if (isRunning) {
+        pauseTimer();
+      } else {
+        startTimer();
+      }
+    }
+
+    // 타이머 리셋 함수
+    function resetTimer() {
+      pauseTimer();
+      remainingSeconds = totalSeconds;
+      updateUI();
+    }
+
+    // 시간 입력값 검증 후 설정 반영
+    function applyCustomTime() {
+      const h = Math.max(0, parseInt(inputHours.value) || 0);
+      const m = Math.max(0, Math.min(59, parseInt(inputMinutes.value) || 0));
+      const s = Math.max(0, Math.min(59, parseInt(inputSeconds.value) || 0));
+      
+      const calcSecs = (h * 3600) + (m * 60) + s;
+      if (calcSecs > 0) {
+        pauseTimer();
+        totalSeconds = calcSecs;
+        remainingSeconds = calcSecs;
+        updateUI();
+      }
+    }
+
+    // 모달 알림창 표시
+    function showModal() {
+      alarmModal.classList.remove('hidden');
+      setTimeout(() => {
+        alarmModal.classList.add('opacity-100');
+      }, 50);
+    }
+
+    // 모달 알림창 닫기
+    function closeModal() {
+      alarmModal.classList.remove('opacity-100');
+      setTimeout(() => {
+        alarmModal.classList.add('hidden');
+      }, 300);
+    }
+
+    // --- 이벤트 리스너 연결 ---
+
+    // 시작 / 리셋 버튼
+    btnToggle.addEventListener('click', toggleTimer);
+    btnReset.addEventListener('click', resetTimer);
+
+    // 직접 입력 적용 버튼
+    btnApplyCustom.addEventListener('click', () => {
+      applyCustomTime();
+    });
+
+    // 프리셋 빠른 단축키 버튼
+    presetButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const secs = parseInt(button.getAttribute('data-seconds'));
+        pauseTimer();
+        totalSeconds = secs;
+        remainingSeconds = secs;
+        
+        // 폼 입력란 값도 프리셋에 맞춰 업데이트해 줌
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        const s = secs % 60;
+        inputHours.value = h;
+        inputMinutes.value = m;
+        inputSeconds.value = s;
+        
+        updateUI();
+      });
+    });
+
+    // 소리 활성 비활성 전환 아이콘 갱신
+    toggleSound.addEventListener('change', () => {
+      if (toggleSound.checked) {
+        soundIcon.className = "fas fa-volume-up text-blue-400";
+      } else {
+        soundIcon.className = "fas fa-volume-mute text-gray-500";
+      }
+    });
+
+    // 알림창 닫기
+    btnModalClose.addEventListener('click', closeModal);
+
+    // 초기 상태 렌더링
+    updateUI();
+
+  </script>
+</body>
+</html>
